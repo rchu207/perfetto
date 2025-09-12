@@ -776,7 +776,10 @@ base::Status FtraceParser::ParseFtraceEvent(uint32_t cpu,
 
     ConstBytes fld_bytes = fld.as_bytes();
     if (fld.id() == FtraceEvent::kGenericFieldNumber) {
-      ParseGenericFtrace(ts, cpu, pid, fld_bytes);
+      bool has_iris_trace = false;
+      ParseGenericFtrace(ts, cpu, pid, fld_bytes, has_iris_trace);
+      if (has_iris_trace)
+        ParseIrisTraceInfo(ts, pid, fld_bytes);
     } else if (fld.id() != FtraceEvent::kSchedSwitchFieldNumber) {
       // sched_switch parsing populates the raw table by itself
       ParseTypedFtraceToRaw(fld.id(), ts, cpu, pid, fld_bytes, seq_state);
@@ -1519,8 +1522,13 @@ void FtraceParser::MaybeOnFirstFtraceEvent() {
 void FtraceParser::ParseGenericFtrace(int64_t ts,
                                       uint32_t cpu,
                                       uint32_t tid,
-                                      ConstBytes blob) {
+                                      ConstBytes blob,
+                                      bool& has_iris_trace) {
   protos::pbzero::GenericFtraceEvent::Decoder evt(blob);
+  if (evt.has_event_name()) {
+    has_iris_trace = (evt.event_name().ToStdString().compare(
+                          "iris_tracing_mark_write") == 0);
+  }
   StringId event_id = context_->storage->InternString(evt.event_name());
   UniqueTid utid = context_->process_tracker->GetOrCreateThread(tid);
   auto ucpu = context_->cpu_tracker->GetOrCreateCpu(cpu);
@@ -4194,4 +4202,36 @@ void FtraceParser::ParseMaliGpuPowerState(int64_t ts,
       context_->track_tracker->InternTrack(kMaliGpuPowerStateBlueprint);
   context_->event_tracker->PushCounter(ts, event.to_state(), track);
 }
+
+void FtraceParser::ParseIrisTraceInfo(int64_t timestamp,
+                                      uint32_t pid,
+                                      ConstBytes blob) {
+  protos::pbzero::GenericFtraceEvent::Decoder evt(blob);
+  uint32_t trace_tgid = 0;
+  char trace_type = 0;
+  ::protozero::ConstChars trace_name;
+  int32_t trace_value = 0;
+
+  for (auto it = evt.field(); it; ++it) {
+    protos::pbzero::GenericFtraceEvent::Field::Decoder fld(*it);
+    if (!fld.has_name())
+      continue;
+
+    auto name = fld.name().ToStdString();
+    if (name.compare("pid") == 0)
+      trace_tgid = static_cast<uint32_t>(fld.int_value());
+    else if (name.compare("value") == 0)
+      trace_value = static_cast<int32_t>(fld.int_value());
+    else if (name.compare("trace_type") == 0)
+      trace_type = static_cast<char>(fld.uint_value());
+    else if (name.compare("trace_name") == 0)
+      trace_name = fld.str_value();
+  }
+  if (trace_type > 0) {
+    SystraceParser::GetOrCreate(context_)->ParseKernelTracingMarkWrite(
+        timestamp, pid, trace_type, false /*trace_begin*/, trace_name,
+        trace_tgid, trace_value);
+  }
+}
+
 }  // namespace perfetto::trace_processor
