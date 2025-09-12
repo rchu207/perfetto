@@ -6331,6 +6331,7 @@ perfetto_proto_library(
         "protos/perfetto/trace/ftrace/i2c.proto",
         "protos/perfetto/trace/ftrace/ion.proto",
         "protos/perfetto/trace/ftrace/ipi.proto",
+        "protos/perfetto/trace/ftrace/iris.proto",
         "protos/perfetto/trace/ftrace/irq.proto",
         "protos/perfetto/trace/ftrace/irq_vectors.proto",
         "protos/perfetto/trace/ftrace/kgsl.proto",

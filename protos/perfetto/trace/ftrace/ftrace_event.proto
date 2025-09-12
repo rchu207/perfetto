@@ -54,6 +54,7 @@ import "protos/perfetto/trace/ftrace/hyp.proto";
 import "protos/perfetto/trace/ftrace/i2c.proto";
 import "protos/perfetto/trace/ftrace/ion.proto";
 import "protos/perfetto/trace/ftrace/ipi.proto";
+import "protos/perfetto/trace/ftrace/iris.proto";
 import "protos/perfetto/trace/ftrace/irq.proto";
 import "protos/perfetto/trace/ftrace/irq_vectors.proto";
 import "protos/perfetto/trace/ftrace/kgsl.proto";
@@ -722,5 +723,6 @@ message FtraceEvent {
     Dwc3PrepareTrbFtraceEvent dwc3_prepare_trb = 573;
     Dwc3ReadlFtraceEvent dwc3_readl = 574;
     Dwc3WritelFtraceEvent dwc3_writel = 575;
+    IrisTracingMarkWriteFtraceEvent iris_tracing_mark_write = 576;
   }
 }

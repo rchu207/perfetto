@@ -54,6 +54,7 @@ ftrace_proto_names = [
   "i2c.proto",
   "ion.proto",
   "ipi.proto",
+  "iris.proto",
   "irq.proto",
   "irq_vectors.proto",
   "kgsl.proto",

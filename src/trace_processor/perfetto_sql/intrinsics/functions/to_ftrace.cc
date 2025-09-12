@@ -51,6 +51,7 @@
 #include "protos/perfetto/trace/ftrace/ftrace.pbzero.h"
 #include "protos/perfetto/trace/ftrace/ftrace_event.pbzero.h"
 #include "protos/perfetto/trace/ftrace/g2d.pbzero.h"
+#include "protos/perfetto/trace/ftrace/iris.pbzero.h"
 #include "protos/perfetto/trace/ftrace/irq.pbzero.h"
 #include "protos/perfetto/trace/ftrace/mdss.pbzero.h"
 #include "protos/perfetto/trace/ftrace/panel.pbzero.h"
@@ -538,6 +539,21 @@ void ArgsSerializer::SerializeArgs() {
     WriteArgForField(HEE::kFunctionFieldNumber,
                      Wrap(&ArgsSerializer::WriteKernelFnValue));
     return;
+  } else if (event_name_ == "iris_tracing_mark_write") {
+    using TMW = protos::pbzero::IrisTracingMarkWriteFtraceEvent;
+    writer_->AppendString(" ");
+    WriteValueForField(
+        TMW::kTraceTypeFieldNumber, [this](const Variadic& value) {
+          PERFETTO_DCHECK(value.type == Variadic::Type::kUint);
+          writer_->AppendChar(static_cast<char>(value.uint_value));
+        });
+    writer_->AppendString("|");
+    WriteValueForField(TMW::kPidFieldNumber, DVW());
+    writer_->AppendString("|");
+    WriteValueForField(TMW::kTraceNameFieldNumber, DVW());
+    writer_->AppendString("|");
+    WriteValueForField(TMW::kValueFieldNumber, DVW());
+    return;
   }
   for (; !cursor_->Eof(); cursor_->Next()) {
     WriteArgAtRow(cursor_->ToRowNumber().row_number(), DVW());
@@ -646,7 +662,8 @@ SystraceSerializer::ScopedCString SystraceSerializer::SerializeToString(
 
   writer.AppendChar(' ');
   if (event_name == "print" || event_name == "g2d_tracing_mark_write" ||
-      event_name == "dpu_tracing_mark_write") {
+      event_name == "dpu_tracing_mark_write" ||
+      event_name == "iris_tracing_mark_write") {
     writer.AppendString("tracing_mark_write");
   } else {
     writer.AppendString(event_name.c_str(), event_name.size());
