@@ -333,9 +333,12 @@ class FtraceParser {
                               int64_t timestamp,
                               protozero::ConstBytes blob);
   void ParseMaliGpuPowerState(int64_t ts, protozero::ConstBytes blob);
-  void ParseIrisTraceInfo(int64_t timestamp,
-                          uint32_t pid,
-                          protozero::ConstBytes);
+  void ParseIrisGenericFtrace(int64_t timestamp,
+                              uint32_t pid,
+                              protozero::ConstBytes);
+  void ParseIrisTracingMarkWrite(int64_t timestamp,
+                                 uint32_t pid,
+                                 protozero::ConstBytes);
 
   TraceProcessorContext* context_;
   RssStatTracker rss_stat_tracker_;

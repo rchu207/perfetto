@@ -94,6 +94,7 @@
 #include "protos/perfetto/trace/ftrace/gpu_mem.pbzero.h"
 #include "protos/perfetto/trace/ftrace/i2c.pbzero.h"
 #include "protos/perfetto/trace/ftrace/ion.pbzero.h"
+#include "protos/perfetto/trace/ftrace/iris.pbzero.h"
 #include "protos/perfetto/trace/ftrace/irq.pbzero.h"
 #include "protos/perfetto/trace/ftrace/kgsl.pbzero.h"
 #include "protos/perfetto/trace/ftrace/kmem.pbzero.h"
@@ -779,7 +780,7 @@ base::Status FtraceParser::ParseFtraceEvent(uint32_t cpu,
       bool has_iris_trace = false;
       ParseGenericFtrace(ts, cpu, pid, fld_bytes, has_iris_trace);
       if (has_iris_trace)
-        ParseIrisTraceInfo(ts, pid, fld_bytes);
+        ParseIrisGenericFtrace(ts, pid, fld_bytes);
     } else if (fld.id() != FtraceEvent::kSchedSwitchFieldNumber) {
       // sched_switch parsing populates the raw table by itself
       ParseTypedFtraceToRaw(fld.id(), ts, cpu, pid, fld_bytes, seq_state);
@@ -1394,6 +1395,10 @@ base::Status FtraceParser::ParseFtraceEvent(uint32_t cpu,
       }
       case FtraceEvent::kHrtimerExpireExitFieldNumber: {
         ParseHrtimerExpireExit(cpu, ts, fld_bytes);
+        break;
+      }
+      case FtraceEvent::kIrisTracingMarkWriteFieldNumber: {
+        ParseIrisTracingMarkWrite(ts, pid, fld_bytes);
         break;
       }
       default:
@@ -4203,9 +4208,9 @@ void FtraceParser::ParseMaliGpuPowerState(int64_t ts,
   context_->event_tracker->PushCounter(ts, event.to_state(), track);
 }
 
-void FtraceParser::ParseIrisTraceInfo(int64_t timestamp,
-                                      uint32_t pid,
-                                      ConstBytes blob) {
+void FtraceParser::ParseIrisGenericFtrace(int64_t timestamp,
+                                          uint32_t pid,
+                                          ConstBytes blob) {
   protos::pbzero::GenericFtraceEvent::Decoder evt(blob);
   uint32_t trace_tgid = 0;
   char trace_type = 0;
@@ -4232,6 +4237,21 @@ void FtraceParser::ParseIrisTraceInfo(int64_t timestamp,
         timestamp, pid, trace_type, false /*trace_begin*/, trace_name,
         trace_tgid, trace_value);
   }
+}
+
+void FtraceParser::ParseIrisTracingMarkWrite(int64_t timestamp,
+                                             uint32_t pid,
+                                             ConstBytes blob) {
+  protos::pbzero::IrisTracingMarkWriteFtraceEvent::Decoder evt(blob);
+  if (!evt.has_trace_type()) {
+    context_->storage->IncrementStats(stats::systrace_parse_failure);
+    return;
+  }
+
+  uint32_t tgid = static_cast<uint32_t>(evt.pid());
+  SystraceParser::GetOrCreate(context_)->ParseKernelTracingMarkWrite(
+      timestamp, pid, static_cast<char>(evt.trace_type()),
+      false /*trace_begin*/, evt.trace_name(), tgid, evt.value());
 }
 
 }  // namespace perfetto::trace_processor
